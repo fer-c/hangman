@@ -1,0 +1,51 @@
+name: Elixir CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+env:
+  MIX_ENV: test
+
+jobs:
+  build:
+    name: Build and Test OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [ "hangman_backend", "hangman_frontend" ]
+        otp: [ "27.2" ]
+        elixir: [ "1.18.1-otp-27" ]
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4.1.7
+      
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+      
+      - name: Setup Erlang and Elixir
+        uses: erlef/setup-beam@v1.17
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+      
+      - name: Restore dependencies cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ matrix.project }}/deps
+          key: ${{ runner.os }}-${{ matrix.project }}-mix-${{ hashFiles(format('{0}/mix.lock', matrix.project)) }}
+          restore-keys: ${{ runner.os }}-${{ matrix.project }}-mix-
+      
+      - name: Install dependencies
+        working-directory: ${{ matrix.project }}
+        run: mix deps.get
+      
+      - name: Run tests
+        working-directory: ${{ matrix.project }}
+        run: mix test
